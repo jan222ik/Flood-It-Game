@@ -1,42 +1,79 @@
 package com.github.jan222ik.floodit.logic
 
+import android.os.Parcel
+import android.os.Parcelable
 import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.*
 import kotlin.properties.Delegates
 import kotlin.random.Random
 
-class Game {
-    private var rng by Delegates.notNull<Random>()
-    var map by Delegates.notNull<FloodItMap>()
+@OptIn(DelicateCoroutinesApi::class)
+class Game(
+    val size: IntSize,
+    val colorCount: Int,
+    val seed: Long = Random.nextLong()
+) : Parcelable {
+    private val rng = Random(this.seed)
 
     val state = MutableStateFlow(FloodItGameState.LOADING)
     val colorUpdates = MutableStateFlow<Pair<Int, Map<Point, Int>>?>(null)
-    val solved = MutableStateFlow<Pair<Int, Int>?>(null)
+    val stepCount = MutableStateFlow(0)
+    val solved = MutableStateFlow<Pair<Int, Int>?>(0 to size.height * size.width)
+    val map = FloodItMap(size, colorCount, rng)
 
-    var seed by Delegates.notNull<Long>()
+    init {
+        GlobalScope.launch {
+            state.emit(FloodItGameState.PLACE_SOURCE)
+        }
+    }
 
-    suspend fun generateBoard(seed: Long?, size: IntSize) {
-        this.seed = seed ?: Random.nextLong()
-        state.emit(FloodItGameState.LOADING)
-        rng = Random(this.seed)
-        map = FloodItMap(size, 5, rng)
-        println("map = ${map}")
-        solved.emit(0 to size.height * size.width)
-        colorUpdates.emit(null)
-        state.emit(FloodItGameState.PLACE_SOURCE)
+    constructor(parcel: Parcel) : this(
+        IntSize(
+            parcel.readInt(),
+            parcel.readInt()
+        ),
+        parcel.readInt(),
+        parcel.readLong()
+    ) {
+
     }
 
     suspend fun nextColor(point: Point) {
         val color = map.map[point.x][point.y]
         val nextColorUpdates: Pair<Int, Map<Point, Int>> = map.nextColor(color)
+        val oldColor = colorUpdates.value
+        if (oldColor != null && nextColorUpdates.first != oldColor.first) {
+            stepCount.emit(stepCount.value.inc())
+        }
         val solveState = solved.value?.copy(first = nextColorUpdates.second.count())
         solved.emit(solveState)
         if (solveState != null && solveState.first == solveState.second) {
             state.emit(FloodItGameState.FINISHED)
         }
         colorUpdates.emit(nextColorUpdates)
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeLong(seed)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<Game> {
+        override fun createFromParcel(parcel: Parcel): Game {
+            return Game(parcel)
+        }
+
+        override fun newArray(size: Int): Array<Game?> {
+            return arrayOfNulls(size)
+        }
     }
 }
 
@@ -49,7 +86,7 @@ class FloodItMap(
     val colorCount: Int,
     rng: Random
 ) {
-    lateinit var source: Point
+    var source: Point? = null
 
     val map = Array(size = size.width) {
         Array(size = size.height) {
@@ -62,11 +99,11 @@ class FloodItMap(
     }
 
     fun nextColor(newColorIdx: Int): Pair<Int, Map<Point, Int>> {
-        val oldColorIdx = map[source.x][source.y]
+        val oldColorIdx = map[source!!.x][source!!.y]
         val updates = mutableMapOf<Point, Int>()
         val visited = mutableMapOf<Point, Boolean>()
         val expansion: Queue<Triple<Int, Point, Boolean>> = LinkedList()
-        expansion.offer(Triple(0, source, true))
+        expansion.offer(Triple(0, source!!, true))
         var countNewColored = 1
         while (expansion.isNotEmpty()) {
             val (depth, point, notEdge) = expansion.poll()!!
