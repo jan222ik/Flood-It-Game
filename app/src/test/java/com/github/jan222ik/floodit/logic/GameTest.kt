@@ -10,8 +10,8 @@ class GameTest {
     @Test
     fun boundsTest() {
         runBlocking {
-            Game.generateBoard(seed = 1L, IntSize(3, 3))
-            with(Game.map) {
+            val game = Game(seed = 1L, size = IntSize(3, 3), colorCount = 4)
+            with(game.map) {
                 val middle = Point(1, 1)
                 assertEquals(middle.copy(y = 0), middle.north)
                 assertEquals(middle.copy(x = 0), middle.west)
