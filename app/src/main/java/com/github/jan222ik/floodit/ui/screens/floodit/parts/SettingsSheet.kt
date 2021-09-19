@@ -102,13 +102,13 @@ fun SettingsSheet(
                 title = { "Width: $it Cells" },
                 value = widthSlider,
                 onValueChange = { widthSlider = it },
-                valueRange = 3f..7f
+                valueRange = 3f..12f
             )
             CellSlider(
                 title = { "Height: $it Cells" },
                 value = heightSlider,
                 onValueChange = { heightSlider = it },
-                valueRange = 5f..12f
+                valueRange = 5f..18f
             )
             CellSlider(
                 title = { "Color Count: $it" },

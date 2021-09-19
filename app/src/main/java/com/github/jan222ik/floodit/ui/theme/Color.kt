@@ -30,10 +30,10 @@ val theme2 = listOf(t2c1, t2c2, t2c3, t2c4, t2c5, t2c6)
 
 val t3c1 = Color(0xFF06171E)
 val t3c2 = Color(0xFF113D3C)
-val t3c3 = Color(0xFF005351)
+val t3c3 = Color(0xFF00807C)
 val t3c4 = Color(0xFFFD7D00)
-val t3c5 = Color(0xFFFC9D01)
-val t3c6 = Color(0xFFFEB236)
+val t3c5 = Color(0xFFFFAD27)
+val t3c6 = Color(0xFFFFD796)
 val theme3 = listOf(t3c1, t3c2, t3c3, t3c4, t3c5, t3c6)
 
 val t4c1 = Color(0xFF33F5BE)
