@@ -9,38 +9,41 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.*
-import kotlin.properties.Delegates
 import kotlin.random.Random
 
 @OptIn(DelicateCoroutinesApi::class)
 class Game(
     val size: IntSize,
     val colorCount: Int,
-    val seed: Long = Random.nextLong()
+    val seed: Long = Random.nextLong(),
+    initStepCount: Int = 0,
+    initMap: Array<Array<Int>>? = null,
+    initSourcePoint: Point? = null
 ) : Parcelable {
     private val rng = Random(this.seed)
 
     val state = MutableStateFlow(FloodItGameState.LOADING)
     val colorUpdates = MutableStateFlow<Pair<Int, Map<Point, Int>>?>(null)
-    val stepCount = MutableStateFlow(0)
+    val stepCount = MutableStateFlow(initStepCount)
     val solved = MutableStateFlow<Pair<Int, Int>?>(0 to size.height * size.width)
-    val map = FloodItMap(size, colorCount, rng)
+
+    val map = FloodItMap(
+        size = size,
+        colorCount = colorCount,
+        map = initMap ?: size.let { s ->
+            Array(size = s.width) {
+                Array(size = s.height) {
+                    rng.nextInt(from = 0, until = colorCount)
+                }
+            }
+        },
+        initSourcePoint = initSourcePoint
+    )
 
     init {
         GlobalScope.launch {
             state.emit(FloodItGameState.PLACE_SOURCE)
         }
-    }
-
-    constructor(parcel: Parcel) : this(
-        IntSize(
-            parcel.readInt(),
-            parcel.readInt()
-        ),
-        parcel.readInt(),
-        parcel.readLong()
-    ) {
-
     }
 
     suspend fun nextColor(point: Point) {
@@ -58,8 +61,62 @@ class Game(
         colorUpdates.emit(nextColorUpdates)
     }
 
+    constructor(parcel: Parcel) : this(
+        size = IntSize(
+            width = parcel.readInt(),
+            height = parcel.readInt()
+        ),
+        colorCount = parcel.readInt(),
+        seed = parcel.readLong(),
+        initStepCount = parcel.readInt(),
+        initMap = parcel.readInt().let { height ->
+            Array(parcel.readInt()) {
+                val intArray = IntArray(height)
+                parcel.readIntArray(intArray)
+                intArray.toTypedArray()
+            }
+        },
+        initSourcePoint = if (parcel.readInt() == 0) {
+            Point(
+                x = parcel.readInt(),
+                y = parcel.readInt()
+            )
+        } else null
+    ) {
+        GlobalScope.launch {
+            if (map.source != null) {
+                state.emit(FloodItGameState.PLACE_SOURCE)
+            } else {
+                state.emit(FloodItGameState.RUNNING)
+            }
+        }
+    }
+
     override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeInt(size.width)
+        parcel.writeInt(size.height)
+        parcel.writeInt(colorCount)
         parcel.writeLong(seed)
+        parcel.writeInt(stepCount.value)
+        // InitMap
+        // Height
+        parcel.writeInt(size.height)
+        // Width
+        parcel.writeInt(size.width)
+        // Content
+        map.map.forEach { row ->
+            parcel.writeArray(row)
+        }
+        // Source Point
+        val source = map.source
+        if (source != null) {
+            parcel.writeInt(0)
+            parcel.writeInt(source.x)
+            parcel.writeInt(source.y)
+        } else {
+            parcel.writeInt(1)
+        }
+
     }
 
     override fun describeContents(): Int {
@@ -84,15 +141,10 @@ enum class FloodItGameState {
 class FloodItMap(
     val size: IntSize,
     val colorCount: Int,
-    rng: Random
+    val map: Array<Array<Int>>,
+    val initSourcePoint: Point? = null
 ) {
-    var source: Point? = null
-
-    val map = Array(size = size.width) {
-        Array(size = size.height) {
-            rng.nextInt(from = 0, until = colorCount)
-        }
-    }
+    var source: Point? = initSourcePoint
 
     fun placeSource(point: Point) {
         this.source = point
@@ -139,7 +191,7 @@ class FloodItMap(
         }
         println("countNewColored = ${countNewColored} need: ${size.width * size.height}")
         runBlocking {
-           // map.emit(map.value)
+            // map.emit(map.value)
         }
         if (countNewColored == size.width * size.height) {
             println("Solved")
@@ -156,10 +208,10 @@ class FloodItMap(
     val Point.west: Point?
         get() = x.dec().takeIf { it >= 0 }?.let { this.copy(x = it) }
 
+
     override fun toString(): String {
         return "FloodItMap(size=$size, colorCount=$colorCount, map=\n${map.joinToString(separator = "\n") { it.contentToString() }})"
     }
-
 
 }
 

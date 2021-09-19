@@ -43,9 +43,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            FloodItTheme(
-                darkTheme = true
-            ) {
+            FloodItTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -262,9 +260,11 @@ fun PlayingBoard(game: Game, isDebug: Boolean = false) {
                                         scope.launch(Dispatchers.IO) {
                                             game.map.placeSource(point)
                                             game.state.emit(FloodItGameState.RUNNING)
+                                            game.nextColor(point)
                                         }
+                                    } else {
+                                        scope.launch(Dispatchers.IO) { game.nextColor(point) }
                                     }
-                                    scope.launch(Dispatchers.IO) { game.nextColor(point) }
                                 },
                             backgroundColor = animColor.value,
                             shape = RectangleShape
