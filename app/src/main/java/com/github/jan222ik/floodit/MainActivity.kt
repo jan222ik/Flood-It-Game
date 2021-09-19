@@ -81,16 +81,27 @@ class MainActivity : ComponentActivity() {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             var allowDecay by remember { mutableStateOf(true) }
-                            var showInfo by remember(gameState) { mutableStateOf(when {
+                            var prevShow by remember { mutableStateOf(false) }
+                            var showInfo by remember(gameState, steps.value) { mutableStateOf(when {
                                 gameState == FloodItGameState.PLACE_SOURCE -> {
                                     allowDecay = false
+                                    prevShow = true
                                     true
                                 }
                                 steps.value == 0 -> {
                                     allowDecay = false
+                                    prevShow = true
                                     true
                                 }
-                                else -> false
+                                steps.value == 1  -> {
+                                    allowDecay = true
+                                    prevShow = true
+                                    true
+                                }
+                                else -> {
+                                    allowDecay = true
+                                    prevShow
+                                }
                             }) }
                             LaunchedEffect(key1 = showInfo, key2 = allowDecay, block = {
                                 if (allowDecay && showInfo) {
@@ -141,6 +152,7 @@ class MainActivity : ComponentActivity() {
                                             .padding(start = 8.dp)
                                             .clickable {
                                                 showSettingsOverlay = !showSettingsOverlay
+                                                allowDecay = true
                                             },
                                         imageVector = Icons.Filled.Settings,
                                         contentDescription = null
